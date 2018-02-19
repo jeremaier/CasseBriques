@@ -1,0 +1,95 @@
+@font-face {
+	font-family: "font";
+	src: url("../Starcraft.ttf") format("truetype");
+}
+
+body {
+	background-image:url(../Images/fond.jpg)
+}
+
+footer {
+	color: #fff;
+	float:right;
+	margin : 0px 50px 0px 0px ;
+	font-size: 170%;
+}
+
+.titre {
+	font-size:150%;
+	color:#A9E2F3;
+}
+
+.meiose {
+	color: #00BFFF;
+	font-size: 150%;	
+}
+
+h1 {
+	font : bold 25px andalus, serif;
+    list-style-type : none;
+	color:#A9E2F3;
+	text-shadow:
+		#000 1px 1px,
+		#000 -1px 1px,
+		#000 -1px -1px,
+		#000 1px -1px; 
+}
+
+p {
+	font-size:175%
+}
+
+#cadre {
+		margin: -40px 235px 50px 235px;
+		background-color: rgba(117, 188, 242, 0.4) ;
+		border-radius: 30px 30px 30px 30px;
+		padding: 60px 30px 70px 30px;
+		box-shadow: 30px 30px 60px 10px black, 0px 0px 0px 0px black inset;
+	    border: 10px ridge;
+		border-color: rgb(56, 152, 226) rgb(21,94,149) rgb(21, 94, 149) rgb(56,152,226);
+}
+	
+.maioun {
+		color: #fff;
+		font-size: 135%;
+
+}
+
+#onglets {
+    font : bold 25px arial, serif;
+    list-style-type : none;
+    padding-bottom : 24px; 
+    margin-left : 0;
+	
+}
+
+#onglets li {
+    float : left;
+    height : 37px; 
+    background-color: #08088A;
+    margin : 2px 2px 0 2px !important;  
+    margin : 2px 2px 0 2px;  
+    border : 2.5px solid #0174DF;
+	border-radius: 10px;
+}
+
+#onglets li:active {
+    border-bottom: 2px solid #fff;
+    background-color: #fff;
+}
+
+#onglets a {
+    display : block;
+    color : #A9E2F3;
+    text-decoration : none;
+    padding : 4px;
+}
+
+#onglets a:hover {
+    background : #0A0A2A;
+	border-radius: 8px;
+}
+
+#canevas {
+	margin: 0 auto;
+}

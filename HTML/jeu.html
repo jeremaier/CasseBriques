@@ -1,0 +1,1247 @@
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Casse-brique</title>
+		<link rel="stylesheet" type="text/css" href="../CSS/cassebriques.css" />
+		<script type="text/javascript" src="../JS/cufon-yui.js"></script>
+		<script type="text/javascript"  src="../JS/Starcraft_400.font.js"></script>
+		<script type="text/javascript">Cufon.replace('p,b');</script>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+        <script type="text/javascript">
+		$(document).ready(function(){
+			$("#main").fadeIn(2000);
+		});
+		</script>
+		<link rel="icon" href="../Images/favicon.ico"/>
+	</head>
+	
+	<body>
+		<div id="main" style="display: none;">
+			<div id="menu">
+				<ul id="onglets">
+					<li><a href="accueil.html"> Accueil </a></li>
+					<li><a href="jeu.html"> Le Jeu </a></li>
+					<li><a href="presentation.html"> Présentation </a></li>
+					<p align="center"class="meiose"> LE JEU DU CASSE BRIQUE </p>
+				</ul>
+			</div>
+		</div>
+	
+		<center>
+			<canvas id = "Casse-Brique" width = "1000" height = "600" style = "border:2px solid #000000"></canvas>
+			<script type="text/javascript">
+				var canvas  = document.getElementById('Casse-Brique');
+				var ctx = canvas.getContext('2d');
+
+				//Toutes les images de fond
+				var fondJeu = new Image();
+				fondJeu.src = "../Images/fondCB.jpeg";
+				var fondDepart = new Image();
+				fondDepart.src = "../Images/fondDepart.jpg";
+				var fondDefaite = new Image();
+				fondDefaite.src = "../Images/fondDefaite.jpg";
+				var fondVictoire = new Image();
+				fondVictoire.src = "../Images/fondVictoire.jpeg";
+				var fondFin = new Image();
+				fondFin.src = "../Images/fondFin.jpg";
+				
+				//Variables de score
+				var score = 0;
+				var vie = 3;
+				var multiplicateur = 1;
+				var meilleurScore = 0;
+				
+				//Variables moment du jeu
+				var menu = {debut:true, perdu:false, gagne:false, jeu:false, pause:false, ouiNon:false, options:false, fin:false};
+				var tir = false;
+				var optionClavier = true;
+				
+				var degrade = ctx.createLinearGradient(0, 0, 0, 800);
+				degrade.addColorStop(0, "rgb(50, 50, 50)");			//Debut
+				degrade.addColorStop(1, "rgb(200, 200, 200)");		//Fin
+				
+				//Image des bonus
+				var missileBonus = new Image();
+				var extensionBonus = new Image();
+				var diminutionBonus = new Image();
+				var bouclierBonus = new Image();
+				var balleFerBonus = new Image();
+				var vitessePlusBonus = new Image();
+				var vitesseMoinsBonus = new Image();
+				missileBonus.src = "../Images/missile.png";
+				extensionBonus.src = "../Images/extension.png";
+				diminutionBonus.src = "../Images/diminution.png";
+				bouclierBonus.src = "../Images/bouclier.png";
+				balleFerBonus.src = "../Images/balleFer.png";
+				vitessePlusBonus.src = "../Images/vitessePlus.png";
+				vitesseMoinsBonus.src = "../Images/vitesseMoins.png";
+				//Liste des bonus activés
+				var parametreBonus = new Array(3);
+				var listeBonus = new Array;
+				var indexBonus = new Array(8);
+				var nombreDeBonus = 0;
+				var bouclierActif = false;
+				var missiles = new Array;
+				//Nombre de missiles restants
+				var nombreDeMissile = 0;
+				//Nombre de missiles tirés
+				var missileTire = 0;
+				//Paramètres balle de fer
+				var balleFerActive = false;
+				var chronoBalle = 0;
+				
+				//Image de la balle
+				var balleNormale = new Image();
+				balleNormale.src = "../Images/balle.png";
+				var balleFer = new Image();
+				balleFer.src = "../Images/balleFer.png";
+				
+				//Paramètres et dimensions de la balle
+				var balle = {x:400, y:537, diametre:14, vitesse:2, xDeplacement:0, yDeplacement:0};
+				var rayon = balle.diametre / 2;
+				var rayonCarre = rayon * rayon;
+				var bordRaquetteBalle = (rayon + 12) * (rayon + 12);
+				//Utilisé si la balle est bloqué horizontalement
+				var delai;
+				
+				//Image des raquettes
+				var raquetteNormale = new Image();
+				var raquetteGrande = new Image();
+				var raquettePetite = new Image();
+				raquetteNormale.src = "../Images/raquetteNormale.png";
+				raquetteGrande.src = "../Images/raquetteGrande.png";
+				raquettePetite.src = "../Images/raquettePetite.png";
+				
+				//Paramètres de la raquette
+				var raquette = {x:400, y:555, largeur:128, hauteur:20, taille:1, imageRaquette:raquetteNormale, vitesse:2, deplacementDroite:false, deplacementGauche:false};
+				
+				//Paramètres des briques
+				var briquesParametres = {nombreLignes:8, nombreColonnes:10, largeur:59, hauteur:20, espace:10, decalageCote:59, decalageHaut:50, detruites:0};
+				var limiteBriques = 50 + (briquesParametres.espace + briquesParametres.hauteur) * briquesParametres.nombreLignes - briquesParametres.espace;
+				var nombreDeBriques = briquesParametres.nombreLignes * briquesParametres.nombreColonnes;
+				var tabBriques = new Array(briquesParametres.nombreLignes);
+				
+				//Evenement de clavier (Appuyé / Relaché) et de souris (Clic / Relaché / Position)
+				document.onkeydown = toucheAppuye;
+				document.onkeyup = toucheReleve;
+				canvas.addEventListener('mousedown', clicSouris, false);
+				canvas.addEventListener('mouseup', function relacheSouris(event) {clique = false;}, false);
+				canvas.addEventListener('mousemove', sourisAuDessusBouton, false);
+				var clique = false;
+				var echapReleve = true;
+				var espaceReleve = true;
+				var sourisDeplacement = 400;
+				var toucheP = 80;
+				var toucheGauche = 37;
+				var toucheDroite = 39;
+				var toucheEspace = 32;
+				var toucheEchap = 27;
+				
+				//Style d'ecriture avec taille et police
+				function styleEcriture(taille, ecriture, couleur) {
+					ctx.fillStyle = couleur;
+					ctx.font = taille + "pt " + ecriture;
+				}
+				
+				//Couleur du bouton au moment du survol
+				function couleurBouton(survol, couleur, couleurAuDessus) {
+					if(survol)												//Quand on au dessus
+						return couleurAuDessus;
+					else													//Quand on ne l'est pas
+						return couleur;
+				}
+				
+				//Placement d'une ecriture au centre de l'ecran
+				function centreEcran(ecriture, largeur) {
+					return ((largeur) / 2) - (ctx.measureText(ecriture).width / 2);
+				}
+				
+				//Dessine en bouton en fonction des coordonnées et des couleurs
+				function dessinerBouton(X, Y, largeur, hauteur, survol, couleur, couleurAuDessus, ecriture, Xe, Ye, couleurEcriture) {
+						ctx.fillStyle = couleurBouton(survol, couleur, couleurAuDessus);		//Couleur avec et sans survol
+						ctx.strokeRect(X, Y, largeur, hauteur);									//Contour
+						ctx.fillRect(X, Y, largeur, hauteur);									//Intérieur
+						ctx.fillStyle = couleurEcriture;										//Couleur de l'ecriture
+						ctx.fillText(ecriture, Xe, Ye);											//Ecriture
+				}
+				
+				//Dessine un cadre et de son intérieur en fonction des coordonnées et de la couleur
+				function dessinerCadre(X, Y, largeur, hauteur, couleur, bord, couleurBord) {
+						ctx.lineWidth = bord;													//Largeur du bord
+						ctx.strokeStyle = couleurBord;											//Couleur contour
+						ctx.strokeRect(X, Y, largeur, hauteur);									//Contour
+						if(couleur != "none")
+							ctx.fillStyle = couleur;											//Couleur intérieur
+						ctx.fillRect(X, Y, largeur, hauteur);									//Intérieur
+				}
+				
+				//Dessine un triangle en fonction des coordonnées et des couleurs
+				function dessinerTriangle(X1, X2, X3, Y1, Y2, Y3, survol, couleur, couleurAuDessus) {
+					ctx.fillStyle = couleurBouton(survol, couleur, couleurAuDessus);			//Couleur flèche avec et sans survol
+					ctx.beginPath();															//Debut de dessin
+					ctx.moveTo(X1, Y1);															//Coin bas
+					ctx.lineTo(X2, Y2);															//Coin haut
+					ctx.lineTo(X3, Y3);															//Coin droit
+					ctx.lineTo(X1, Y1);															//Coin bas
+					ctx.fill();																	//Remplir
+					ctx.closePath();															//Fin du dessin
+				}
+				
+				//Menu de demarrage du jeu
+				function debut() {
+					if(menu.jeu)																			//Quitte le menu et affiche le jeu
+						menu.debut = false;
+					else {																					//Affichage du menu
+						fondDepart.onload = function() {													//Si l'image de fond a fini de charger
+							ctx.drawImage(fondDepart, 0, 0, 1000, 600);
+							styleEcriture("40", "font", "rgb(180, 180, 180)");																												//Ecriture
+							ctx.fillText("Casse-briques", centreEcran("casse-briques", canvas.width), 240);																					//
+							styleEcriture("16", "font", "rgb(180, 180, 180)");																												//
+							ctx.fillText("Appuyez sur n'importe quelle touche pour commencer !", centreEcran("Appuyez sur n'importe quelle touche pour commencer !", canvas.width), 380);	//
+							styleEcriture("14", "font", "rgb(0, 0, 255)");																													//
+							ctx.fillText("Par François, Fabien, Jeremy", canvas.width - ctx.measureText("Par François, Fabien, Jeremy").width - 10, 590);
+						}
+					}
+				}
+				debut();
+				
+				//Fenêtre de pause ou de confirmation de reinitialisation
+				function pause(survolBouton1, survolBouton2, survolBouton3, survolFlecheG, survolFlecheD, survolBoutonRetour) {
+					couleur = "rgb(120, 120, 120)";
+					couleurAuDessus = "rgb(105, 105, 105)";
+					if(menu.ouiNon) {																									//Menu de confirmation de reinitialisation
+						dessinerCadre(200, 180, 400, 152, "rgb(150, 150, 150)", 4, "black");											//Affichage du cadre + intérieur
+						
+						styleEcriture("10", "font", "black");
+						ctx.fillText("Etes-vous sur de vouloir recommencer?", centreEcran("Etes-vous sur de vouloir recommencer?", canvas.width - 200), 210);				//Titre du menu
+						ctx.lineWidth = 1;																																	//
+						dessinerBouton(220, 230, 360, 40, survolBouton1, couleur, couleurAuDessus, "Oui", centreEcran("Oui", canvas.width - 200), 257, "black");			//Affichage premier bouton
+						dessinerBouton(220, 280, 360, 40, survolBouton2, couleur, couleurAuDessus, "Non", centreEcran("Non", canvas.width - 200), 307, "black");			//Affichage deuxième bouton
+					} else if(menu.options) {																							//Menu des options
+						dessinerCadre(275, 180, 250, 202, "rgb(150, 150, 150)", 4, "black");											//Affichage du cadre + intérieur
+						
+						dessinerTriangle(340, 340, 320, 308, 268, 288, survolFlecheG, couleur, couleurAuDessus)
+						dessinerTriangle(460, 460, 480, 308, 268, 288, survolFlecheD, couleur, couleurAuDessus)
+						
+						styleEcriture("16", "font", "black");
+						ctx.fillText("-- Options --", centreEcran("-- Options --", canvas.width - 200), 212);																		//Titre du menu
+						ctx.lineWidth = 1;																																			//Affichage bouton retour
+						dessinerBouton(300, 330, 200, 40, survolBoutonRetour, couleur, couleurAuDessus, "Retour", centreEcran("Retour", canvas.width - 200), 357, "black");			//
+
+						styleEcriture("14", "font", "black");																			//
+						ctx.fillText("Controles :", 290, 245);																			//
+						if(optionClavier)																								//Quand c'est le clavier
+							ctx.fillText("Clavier", centreEcran("Clavier", canvas.width - 200), 294);									//
+						else																											//Quand c'est la souris
+							ctx.fillText("Souris", centreEcran("Souris", canvas.width - 200), 294);										//
+					} else {																											//Menu de pause
+						dessinerCadre(275, 180, 250, 202, "rgb(150, 150, 150)", 4, "black");											//Affichage du cadre + intérieur
+						
+						styleEcriture("13", "font", "black");
+						ctx.fillText("-- Jeu en pause --", centreEcran("-- Jeu en pause --", canvas.width - 200), 212);																//Titre du menu
+						ctx.lineWidth = 1;
+						dessinerBouton(300, 230, 200, 40, survolBouton1, couleur, couleurAuDessus, "Continuer", centreEcran("Continuer", canvas.width - 200), 257, "black");		//Affichage premier bouton
+						dessinerBouton(300, 280, 200, 40, survolBouton2, couleur, couleurAuDessus, "Recommencer", centreEcran("Recommencer", canvas.width - 200), 307, "black");	//Affichage deuxième bouton
+						dessinerBouton(300, 330, 200, 40, survolBouton3, couleur, couleurAuDessus, "Options", centreEcran("Options", canvas.width - 200), 357, "black");			//Affichage troisième bouton
+					}
+				}
+				
+				//Menu de recommencement (Gagnant ou perdant)
+				function recommencer(couleurBoutonOui, couleurBoutonNon) {
+					reinitialisationParametres();
+					ctx.clearRect(0, 0, 1000, 600);								//Efface la fenetre
+					styleEcriture("40", "font", "black");
+					if(menu.perdu) {											//Si c'est une défaite
+						ctx.beginPath();
+						ctx.drawImage(fondDefaite, 0, 0, 1000, 600);
+						ctx.closePath();
+						ctx.fillText("Game Over !", centreEcran("Game Over !", canvas.width), 200);
+						if(menu.jeu)											//Si on retourne au jeu
+							menu.perdu = false;
+					} else if (menu.gagne) {									//Si c'est une victoire
+						ctx.beginPath();
+						ctx.drawImage(fondVictoire, 0, 0, 1000, 600);
+						ctx.closePath();
+						ctx.fillText("Victoire !", centreEcran("Victoire !", canvas.width), 200);
+						if(menu.jeu)											//Si on retourne au jeu
+							menu.gagne = false;
+					}
+					styleEcriture("30", "font", "black");
+					ctx.fillText("Voulez-vous recommencer ?", centreEcran("Voulez-vous recommencer ?", canvas.width), 275);
+					affichageBoutonOui(couleurBoutonOui);
+					affichageBoutonNon(couleurBoutonNon);
+				}
+				
+				//Bouton pour recommencer dans le menu de défaite ou de victoire
+				function affichageBoutonOui(survol) {
+					styleEcriture("30", "font", "black");																//Ecriture dans le bouton
+					dessinerBouton(200, 350, 200, 100, survol, "green", "rgb(51, 75, 0)", "OUI", 258, 415, "black");	//Affichage du bouton
+				}
+				
+				//Bouton pour terminer dans le menu de défaite ou de victoire
+				function affichageBoutonNon(survol) {
+					if(survol) {																					//Couleur du bouton en fonction de souris au dessus ou non
+						styleEcriture("16", "font", "black");
+						ctx.fillText("Etes vous vraiment sur de ", 550, 500);
+						ctx.fillText("ne pas vouloir recommencer ?", 550, 525)
+					}
+					styleEcriture("30", "font", "black");															//Ecriture dans le bouton
+					dessinerBouton(600, 350, 200, 100, survol, "red", "rgb(200, 0, 0)", "NON", 654, 415, "black");	//Affichage du bouton
+				}
+
+				//Menu de fin avec le bouton rejouer
+				function fin(couleurEcriture, ecriture, X, Y, survol) {
+					menu.fin = true;
+					ctx.beginPath();
+					ctx.drawImage(fondFin, 0, 0, 1000, 600);
+					ctx.closePath();
+					styleEcriture("70", "font", "black");
+					ctx.fillStyle = couleurEcriture;
+					ctx.fillText(ecriture, X, Y);
+					
+					styleEcriture("11", "font", "black");																					//Ecriture dans le bouton
+					dessinerBouton(890, 560, 100, 30, survol, "rgb(120, 120, 120)", "rgb(105, 105, 105)", "Rejouer", 900, 580, "black");	//Affichage du bouton
+				}
+				
+				//Reinitialisation de tous les paramètres de jeu
+				function reinitialisationParametres() {
+					tir = false;
+					balle.xDeplacement = 0;
+					balle.yDeplacement = 0;
+					balle.x = 400;
+					balle.y = 537;
+					raquette.x = 400;
+					balle.vitesse = 2;
+					multiplicateur = 1;
+					for(i = 0; i < nombreDeBonus; i++) {					//Remettre à 0 les bonus
+						listeBonus.unset(listeBonus[i], true, true);		//
+					}														//
+					nombreDeBonus = 0;										//
+					raquette.taille = 1;									//
+					raquette.imageRaquette = raquetteNormale;				//
+					raquette.largeur = 128;									//
+					bouclierActif = false;									//
+					nombreDeMissile = 0;									//
+					balleFerActive = false;									//
+					chronoBalle = 0;										//
+					for(i = 0; i < missileTire; i++) {						//Remettre à 0 les bonus
+						missiles.unset(missiles[i], false, false);			//
+					}														//
+					if(menu.gagne || menu.perdu || menu.ouiNon) {			//Si on est dans un de ces 3 menus
+						score = 0;
+						vie = 3;
+						multi = 1;
+						briquesParametres.detruites = 0;
+						initialisationBriques();
+					}
+				}
+				
+				//Apparition des briques en debut de partie
+				function initialisationBriques() {
+					for(i = 0; i < tabBriques.length; i++) {								//Lignes des briques
+						tabBriques[i] = new Array(briquesParametres.nombreColonnes);
+						for(j = 0; j < tabBriques[i].length; j++)							//Colonnes des briquesParametres
+							tabBriques[i][j] = {x:briquesParametres.decalageCote + j * (briquesParametres.largeur + briquesParametres.espace), y:briquesParametres.decalageHaut + i * (briquesParametres.hauteur + briquesParametres.espace), durabilite:Math.floor((briquesParametres.nombreLignes + 1 - i) / 2), bonus:Math.floor(Math.random() + Math.random() / 5)};
+					}
+				}
+				initialisationBriques();
+				
+				//Affiche les briques en vérifiant si elle existe
+				function affichageDesBriques() {
+					ctx.globalAlpha = 0.80;													//Creer de la transparence sur les briques
+					for (var i = 0; i < tabBriques.length; i++) {							//Lignes des briques
+						for (var j = 0; j < tabBriques[i].length; j++) {					//Colonnes des briques
+							if (tabBriques[i][j].durabilite > 0) {							//Si la brique existe alors ca affiche
+								ctx.fillStyle = "rgb(60, 60, 60)";																																//Couleur de l'ombre
+								ctx.fillRect(tabBriques[i][j].x + 5, tabBriques[i][j].y + 5, briquesParametres.largeur, briquesParametres.hauteur);												//Ombre des briques
+								if(tabBriques[i][j].bonus == 0) {
+									var decalageCouleur1 = 0;
+									var decalageCouleur2 = 50 * tabBriques[i][j].durabilite;
+									var decalageCouleur3 = parseFloat(40 + 40 * tabBriques[i][j].durabilite);
+								} else {
+									var decalageCouleur1 = 180;
+									var decalageCouleur2 = 0;
+									var decalageCouleur3 = 0;
+								}
+								dessinerCadre(tabBriques[i][j].x, tabBriques[i][j].y, briquesParametres.largeur, briquesParametres.hauteur, "rgb(" + decalageCouleur1 + "," + decalageCouleur2 + "," + decalageCouleur3 + ")", 2, "black");	//Dessiner les briques
+							}
+						}
+					}
+					ctx.globalAlpha = 1.0;
+				}
+				
+				//Lorsque la balle touche une brique
+				function collisionDesBriques() {
+					for (var i = 0; i < tabBriques.length; i++) {							//Lignes des briques
+						for (var j = 0; j < tabBriques[i].length; j++) {					//Colonnes des briques
+							if(tabBriques[i][j].durabilite > 0) {
+								if(missileTire > 0)
+									collisionsMissiles(tabBriques[i][j]);
+									
+								collisionCote(tabBriques[i][j]);
+								
+								if (collisionCoinPossible(tabBriques[i][j]))
+									collisionCercleCoin(tabBriques[i][j]);
+							}
+						}
+					}
+				}
+				
+				//Calcul de la position de la balle par rapport à la brique
+				function collisionCote(brique) {
+					//Quand la balle vient d'en dessous
+					if((balle.x >= brique.x && balle.x <= brique.x + briquesParametres.largeur) && balle.y - rayon <= brique.y + briquesParametres.hauteur && balle.y - rayon >= brique.y + briquesParametres.hauteur / 2) {
+						brique.durabilite--;
+						destructionDesBriques(brique, 1, -1, "null");
+					//Quand elle vient d'en haut
+					} else if((balle.x >= brique.x && balle.x <= brique.x + briquesParametres.largeur) && balle.y + rayon >= brique.y && balle.y + rayon <= brique.y + briquesParametres.hauteur / 2) {
+						brique.durabilite--;
+						destructionDesBriques(brique, 1, -1, "null");
+					//Quand elle vient de gauche
+					}else if((balle.y >= brique.y && balle.y <= brique.y + briquesParametres.hauteur) && balle.x + rayon >= brique.x && balle.x + rayon <= brique.x + briquesParametres.largeur / 2) {
+						brique.durabilite--;
+						destructionDesBriques(brique, -1, 1, "null");
+					//Quand elle vient de droite
+					} else if((balle.y >= brique.y && balle.y <= brique.y + briquesParametres.hauteur) && balle.x - rayon <= brique.x + briquesParametres.largeur && balle.x - rayon >= brique.x + briquesParametres.largeur / 2) {
+						brique.durabilite--;
+						destructionDesBriques(brique, -1, 1, "null");
+					}
+				}
+				
+				//Est il possible qu'il y ait collision avec le coin de la brique?
+				function collisionCoinPossible(brique) {
+					if (((balle.x + rayon >= brique.x && balle.x + rayon <= brique.x + briquesParametres.largeur) || (balle.x - rayon >= brique.x && balle.x - rayon <= brique.x + briquesParametres.largeur))
+					&& ((balle.y + rayon >= brique.y && balle.y + rayon <= brique.y + briquesParametres.hauteur) || (balle.y - rayon >= brique.y && balle.y - rayon <= brique.y + briquesParametres.hauteur)))
+						return true;
+					else
+						return false;
+				}
+				
+				//Collision avec quel coin de la brique?
+				function collisionCercleCoin(brique) {
+					//Coin en bas à gauche
+					var xBrique = brique.x;
+					var yBrique = brique.y;
+					
+					for(coin = 0; coin < 4; coin++) {
+						switch(coin) {
+							case 1 :												//Coin en haut à droite
+								xBrique = brique.x + briquesParametres.largeur;
+								break;
+							case 2 :												//Coin en bas à droite
+								yBrique = brique.y + briquesParametres.hauteur;
+								break;
+							case 3 :												//Coin en bas à gauche
+								xBrique = brique.x;
+								break;
+						}
+						var distancePointPerimetre = (xBrique - balle.x) * (xBrique - balle.x) + (yBrique - balle.y) * (yBrique - balle.y);
+						if (distancePointPerimetre <= rayonCarre) {		//Si la distance entre le centre de la balle et le coin est plus petit que le rayon alors il y a collision 
+							brique.durabilite--;														//Disparition des briques
+							destructionDesBriques(brique, -1, -1, coin);
+							break;
+						}
+					}
+				}
+				
+				//Disparition de la brique concernée
+				function destructionDesBriques(brique, dX, dY, coin) {
+					if(!balleFerActive) {
+						if(coin != "null") {
+							var a = balle.xDeplacement * dX;
+							var b = balle.yDeplacement * dY;
+							var h = Math.sqrt ( a * a + b * b);
+							var alpha = Math.acos(a / h);
+
+							if(coin == 0)
+								var teta = - 3 * Math.PI / 4 - alpha;
+							if(coin == 1)
+								var teta = - Math.PI / 4 - alpha;							
+							if(coin == 2)
+								var teta =  Math.PI / 4 - alpha;						
+							if(coin == 3)
+								var teta = 3 * Math.PI / 4 - alpha;
+							var x = a * Math.cos(2 * teta) - b * Math.sin(2 * teta);
+							var y = a * Math.sin(2 * teta) + b * Math.cos(2 * teta);
+							balle.xDeplacement = x;
+							balle.yDeplacement = y;
+							// console.log(a, b, h, alpha * 180 / Math.PI, coin, teta * 180 / Math.PI, x, y, Math.acos(x / h) * 180 / Math.PI);
+						} else {
+							balle.xDeplacement *= dX;																	//Inversion du déplacement en X ou pas
+							balle.yDeplacement *= dY;																	//Inversion du déplacement en Y ou pas
+						}
+					}
+					if(brique.durabilite == 0)
+						briquesParametres.detruites++;
+					score += 10 * multiplicateur;
+					if(brique.bonus == 1 && brique.durabilite == 0) {
+						var numeroBonus = Math.floor(8 * Math.random());
+						attributionBonus(numeroBonus);
+					}
+				}
+				
+				//Apparition des bonus après un cassage de brique
+				function attributionBonus(numeroBonus) {
+					switch(numeroBonus) {
+						case 0 :
+							if(nombreDeMissile == 0)
+								nombreDeMissile = 8;
+							break;
+						case 1 :
+							if(raquette.taille != 2) {
+								raquette.taille++;
+								/*listeBonus.unset(listeBonus[indexBonus[2]], true, false);
+								reduireIndex(indexBonus[2]);*/
+							}
+							break;
+						case 2 :
+							if(raquette.taille != 0) {
+								raquette.taille--;
+								/*listeBonus.unset(listeBonus[indexBonus[1]], true, false);
+								reduireIndex(indexBonus[1]);*/
+							}
+							break;
+						case 3 :
+							if(!bouclierActif)
+								bouclierActif = true;
+							break;
+						case 4 :
+							multiplicateur++;
+							break;
+						case 5 :
+							if(!balleFerActive) {
+								balleFerActive = true;
+								chronoBalle = 5;
+							}
+							break;
+						case 6 :
+							if(balle.vitesse < 8)
+								balle.vitesse++;
+							break;
+						case 7 :
+							if(balle.vitesse > 1)
+								balle.vitesse--;
+							break;	
+					}
+					if(numeroBonus != 4) {
+						// || ((numeroBonus == 1 && raquette.taille == 1) || (numeroBonus == 2 && raquette.taille == 0) || (numeroBonus == 6 && balle.vitesse == 4) || (numeroBonus == 7 && balle.vitesse == 1))
+						if((bonusExistant(numeroBonus) && (numeroBonus != 1 || numeroBonus != 2 || numeroBonus != 6 || numeroBonus != 7)))
+							attributionBonus(Math.floor(8 * Math.random()));
+						else
+							parametresBonus(numeroBonus);
+					}
+				}
+				
+				function bonusExistant(numeroBonus) {
+					var bonusExiste = false;
+					var i = 0;
+					if(nombreDeBonus != 0) {
+						while(bonusExiste == false && i != nombreDeBonus) {
+							if(listeBonus[i][0] == numeroBonus)
+								bonusExiste = true;
+							else
+								i++;
+						}
+					}
+					return bonusExiste;
+				}
+				
+				function parametresBonus(numeroBonus) {
+					if(!((numeroBonus == 1 || numeroBonus == 2) && raquette.taille == 1) || !((numeroBonus == 6 || numeroBonus == 7) && balle.vitesse == 2)
+						|| !(numeroBonus == 6 && balle.vitesse > 2) || !(numeroBonus == 7 && balle.vitesse < 2)) {
+						var imageBonus;
+						var nomBonus;
+						switch(numeroBonus){
+							case 0:
+								imageBonus = missileBonus;
+								nomBonus = "Missiles";
+								indexBonus[numeroBonus] = nombreDeBonus;
+								break;
+							case 1:
+								imageBonus = extensionBonus;
+								nomBonus = "Grande raquette";
+								indexBonus[numeroBonus] = nombreDeBonus;
+								break;
+							case 2:
+								imageBonus = diminutionBonus;
+								nomBonus = "Petite raquette";
+								indexBonus[numeroBonus] = nombreDeBonus;
+								break;
+							case 3:
+								imageBonus = bouclierBonus;
+								nomBonus = "Bouclier";
+								indexBonus[numeroBonus] = nombreDeBonus;
+								break;
+							case 5:
+								imageBonus = balleFerBonus;
+								nomBonus = "Balle de fer";
+								indexBonus[numeroBonus] = nombreDeBonus;
+								break;
+							case 6:
+								imageBonus = vitessePlusBonus;
+								nomBonus = "Balle plus rapide";
+								indexBonus[numeroBonus] = nombreDeBonus;
+								break;
+							case 7:
+								imageBonus = vitesseMoinsBonus;
+								nomBonus = "Balle plus lente";
+								indexBonus[numeroBonus] = nombreDeBonus;
+								break;
+						}
+						parametreBonus[0] = numeroBonus;
+						parametreBonus[1] = imageBonus;
+						parametreBonus[2] = nomBonus;
+					
+						listeBonus[nombreDeBonus] = new Array(3);
+						for(i = 0; i < 3; i++)
+							listeBonus[nombreDeBonus][i] = parametreBonus[i];
+						nombreDeBonus++;
+					}
+				}
+
+				function affichageBonus() {
+					styleEcriture("8", "font", "black");
+					if(nombreDeBonus > 0) {
+						for(i = 0; i < nombreDeBonus; i++) {
+							ctx.fillText(listeBonus[i][2], 820, 350 + i * 35);
+							ctx.beginPath();
+							/*if(listeBonus[i][0] == 5)
+								ctx.drawImage(listeBonus[i][1], 805, 325 + i * 35, 40, 40);			//Affichage du bonus
+							else
+								ctx.drawImage(listeBonus[i][1], 790, 305 + i * 35, 80, 80);			//Affichage du bonus*/
+						}
+					}
+					if(chronoBalle > 0)
+						ctx.fillText("Chrono : " + chronoBalle, 850, 370 + indexBonus[5] * 35);
+				}
+				
+				Array.prototype.unset = function(colonne, bonus, toutSuppr) {
+					var index = this.indexOf(colonne);
+					if(index > -1) {
+						this.splice(index, 1)
+						if(!toutSuppr) {
+							if(bonus == true)
+								nombreDeBonus--;
+							else
+								missileTire--;
+						}
+					}
+				}
+				
+				function reduireIndex(colonneSuppr) {
+					for(i = 0; i < 7; i++) {
+						if(indexBonus[i] > colonneSuppr) {
+							indexBonus[i]--;
+						}	
+					}
+				}
+				
+				function decompte() {
+					if(menu.jeu) {
+						if(chronoBalle > 1)
+							chronoBalle--;
+						else {
+							chronoBalle = 0;
+							if(indexBonus[5] != -1) {
+								listeBonus.unset(listeBonus[indexBonus[5]], true, false);
+								reduireIndex(indexBonus[5]);
+								balleFerActive = false;
+							}
+						}
+					}
+				}
+				var timer = setInterval(decompte, 1000);
+				
+				function bouclier() {
+					ctx.beginPath();
+					ctx.strokeStyle = "blue";
+					ctx.lineWidth = 3; 
+					ctx.moveTo(0, raquette.y + raquette.hauteur / 2 + 5);
+					ctx.lineTo(800, raquette.y + raquette.hauteur / 2 + 5);
+					ctx.stroke();
+					
+					if(balle.y + rayon >= raquette.y + raquette.hauteur / 2 + 5) {
+						balle.yDeplacement *= -1;
+						bouclierActif = false;
+						listeBonus.unset(listeBonus[indexBonus[3]], true, false);
+						reduireIndex(indexBonus[3]);
+					}
+				}
+								
+				function missile(x, y) {
+					this.x = x;
+					this.y = y;
+				}
+				
+				function tirMissile() {
+					if(nombreDeMissile > 0) {
+						missiles[missileTire] = new missile(raquette.x - raquette.largeur / 2 + 16, raquette.y - raquette.hauteur / 2);
+						missileTire++;
+						missiles[missileTire] = new missile(raquette.x + raquette.largeur / 2 - 18, raquette.y - raquette.hauteur / 2);
+						missileTire++;
+						nombreDeMissile--;
+					}
+					if(nombreDeMissile == 0) {
+						listeBonus.unset(listeBonus[indexBonus[0]], true, false);
+						reduireIndex(indexBonus[0]);
+					}
+				}
+				
+				function affichageMissiles() {
+					ctx.strokeStyle = "rgb(255, 255, 0)";
+					ctx.beginPath();
+					for(i = 0; i < missileTire; i++) {
+						ctx.moveTo(missiles[i].x, missiles[i].y);
+						ctx.lineTo(missiles[i].x, missiles[i].y + 8);
+						ctx.moveTo(missiles[i].x + 1, missiles[i].y);
+						ctx.lineTo(missiles[i].x + 1, missiles[i].y + 8);
+						missiles[i].y -= 7;
+					}
+					ctx.stroke();
+				}
+				
+				function collisionsMissiles(brique) {
+					for(i = 0; i < missileTire; i++) {
+						if(missiles[i].y <= 0)
+							missiles.unset(missiles[i], false, false)																						//Disparition du missile
+						if(missiles[i].y <= limiteBriques) {
+							if(missiles[i].y <= brique.y + briquesParametres.hauteur && missiles[i].x >= brique.x && missiles[i].x <= brique.x + briquesParametres.largeur) {	//Si le missile est en contact avec la brique
+								missiles.unset(missiles[i], false, false)																					//Disparition du missile
+								brique.durabilite--;
+								if(brique.durabilite == 0) {
+									if(brique.bonus == 1) {
+										var numeroBonus = Math.floor(8 * Math.random());
+										attributionBonus(numeroBonus);
+									}
+									briquesParametres.detruites++;
+								}
+								score += 5 * multiplicateur;
+							}
+						}
+					}
+				}
+				
+				//Quand on appuie sur une touche
+				function toucheAppuye(e) {
+					if((e.keyCode == toucheP || e.keyCode == toucheEchap) && !menu.debut && !menu.perdu && !menu.gagne && !menu.fin && echapReleve){	//Mettre en pause le jeu
+						echapReleve = false;
+						if(!menu.pause) {																				//S'il n'est pas présent
+							menu.pause = true;
+							menu.jeu = false;
+							pause(false, false, false, false, false, false);
+						} else {																						//S'il est déjà présent
+							menu.jeu = true;
+							menu.pause = false;
+							menu.ouiNon = false;
+							menu.options = false;
+						}
+					}
+					
+					if(e.keyCode == toucheEspace && !tir && !menu.debut && !menu.perdu && !menu.gagne && !menu.pause && !menu.fin && optionClavier && espaceReleve) {	//Tirer avec le clavier
+						espaceReleve = false;
+						tir = true;
+						balle.yDeplacement = -1;
+					}
+					
+					if(e.keyCode == toucheEspace && tir && !menu.debut && !menu.perdu && !menu.gagne && !menu.pause && !menu.fin && optionClavier && espaceReleve) {	//Tirer les missiles avec le clavier
+						espaceReleve = true;
+						tirMissile();
+					}
+					
+					if(e.keyCode == toucheDroite && optionClavier)							//Aller à droite
+						raquette.deplacementDroite = true;
+					else if (e.keyCode == toucheGauche && optionClavier)					//Aller à gauche
+						raquette.deplacementGauche = true;
+					
+					if (menu.debut){														//Enlever le menu de début avec n'importe quelle touche
+						menu.jeu = true;
+						debut();
+					}
+				}
+				
+				//Quand on relache la touche
+				function toucheReleve(e) {
+					if(e.keyCode == toucheDroite && optionClavier)								//Arreter le mouvement à droite
+						raquette.deplacementDroite = false;
+					else if (e.keyCode == toucheGauche && optionClavier)						//Arreter le mouvement à gauche
+						raquette.deplacementGauche = false;
+					
+					if(echapReleve == false && e.keyCode == toucheEchap)
+						echapReleve = true;
+					
+					if(espaceReleve == false && e.keyCode == toucheEspace)
+						espaceReleve = true;
+				}
+				
+				//Clique sur les bouton
+				function clicSouris(event) {
+					//Coordonnées souris
+					var sourisX = event.layerX;
+					var sourisY = event.layerY;
+					if(menu.perdu || menu.gagne) {															//Si c'est dans le menu de victoire ou de défaite
+						if(sourisX >= 201 && sourisX <= 402 && sourisY >= 351 && sourisY <= 451) {			//Reinitialisation du jeu car clique sur oui
+							menu.jeu = true;
+							recommencer(true, false);
+						}
+						
+						if(sourisX >= 601 && sourisX <= 802 && sourisY >= 351 && sourisY <= 451) {			//Affichage du menu de fin car clique sur non
+							ctx.clearRect(0, 0, 1000, 600);													//Efface la fenetre
+							styleEcriture("70", "font", "black");
+							if(menu.gagne)																		//Si on est dans le menu de victoire
+								fin("green", "Fin !", 379, 300, false);
+							else if (menu.perdu)																//Si on est dans le menu de défaite
+								fin("red", "Fin !", 379, 300, false);
+						}
+					}
+					
+					if(menu.pause && !menu.ouiNon && !menu.options) {													//Si on est dans le menu de pause
+						if(sourisX >= 301 && sourisX <= 502 && sourisY >= 231 && sourisY <= 271)					//On continue
+							menu.pause = false;
+							clique = true;
+							menu.jeu = true;
+						
+						if(sourisX >= 301 && sourisX <= 502 && sourisY >= 281 && sourisY <= 321) {					//On affiche le menu de confirmation de réinitialisation
+							nettoyageEcran();
+							menu.ouiNon = true;
+							clique = true;
+							pause(false, false, false, false, false, false);
+						}
+						
+						if(sourisX >= 301 && sourisX <= 502 && sourisY >= 331 && sourisY <= 371) {					//On affiche le menu des options
+							nettoyageEcran();
+							menu.options = true;
+							clique = true;
+							pause(false, false, false, false, false, false);
+						}
+					}
+					
+					if(menu.ouiNon) {																				//Si on est dans le menu de confirmation
+						if(sourisX >= 221 && sourisX <= 582 && sourisY >= 231 && sourisY <= 271) {					//On recommence le jeu
+							reinitialisationParametres();
+							menu.ouiNon = false;
+							menu.pause = false;
+							menu.jeu = true;
+						}
+						
+						if(sourisX >= 221 && sourisX <= 582 && sourisY >= 281 && sourisY <= 321 && !clique) {		//On revient au menu de pause
+							menu.ouiNon = false;
+							nettoyageEcran();
+							pause(false, false, false, false, false, false);
+						}
+					}
+					
+					if(menu.options && !clique) {									//Si on est dans le menu des options
+						var flecheGauche = sourisX >= 326 && sourisX <= 341;
+						var flecheDroite = sourisX >= 466 && sourisX <= 481;
+						if(sourisY >= 267 && sourisY <= 304) {
+							if(flecheGauche || flecheDroite) {						//La meme chose pour la fleche droite ou gauche
+								if(optionClavier)
+									optionClavier = false;
+								else
+									optionClavier = true;
+							}
+							
+							if(flecheGauche)
+								pause(false, false, false, true, false, false);
+							
+							if(flecheDroite)
+								pause(false, false, false, false, true, false);
+						}
+						
+						if(sourisX >= 301 && sourisX <= 502 && sourisY >= 326 && sourisY <= 366) {			//Quand on retourne au menu de pause
+							menu.options = false;
+							nettoyageEcran();
+							pause(false, false, false, false, false, false);
+						}
+					}
+
+					if(menu.debut) {																			//On commence si on clique dans le menu de depart
+						menu.jeu = true;
+						clique = true;
+						debut();
+					}
+					
+					if(menu.fin && sourisX >= 891 && sourisX <= 992 && sourisY >= 561 && sourisY <= 591) {	//Si on est dans le menu de fin et qu'on clique sur le bouton recommencer
+						menu.jeu = true;
+						menu.fin = false;
+						menu.gagne = false;
+						menu.perdu = false;
+						reinitialisationParametres();
+					}
+					
+					if(menu.jeu && sourisX < 800 && sourisX > 0 && !tir && !menu.debut && !menu.perdu && !menu.gagne && !menu.pause && !menu.fin && !optionClavier && !clique) {	//Tirer la balle avec la raquette
+						tir = true;
+						balle.yDeplacement = -1;
+					}
+					
+					if(sourisX < 800 && sourisX > 0 && menu.jeu && tir && !menu.debut && !menu.perdu && !menu.gagne && !menu.pause && !menu.fin && !optionClavier && !clique)	//Tirer la balle avec la raquette
+						tirMissile();
+				}
+				
+				//Lorsque la souris passe au dessus des boutons
+				function sourisAuDessusBouton(event) {
+					//Coordonnées souris
+					var sourisX = event.layerX;
+					var sourisY = event.layerY;
+					var bouton1;
+					var bouton2;
+					var bouton3;
+					sourisDeplacement = sourisX;
+					
+					if((menu.perdu || menu.gagne) && !menu.fin) {														//Changement de la couleur des boutons dans le menu de victoire ou de défaite
+						bouton1 = sourisX >= 201 && sourisX <= 402 && sourisY >= 351 && sourisY <= 451;
+						bouton2 = sourisX >= 601 && sourisX <= 802 && sourisY >= 351 && sourisY <= 451;
+						if(bouton1)
+							recommencer(true, false);
+						
+						if(bouton2)
+							recommencer(false, true);
+						
+						if(!bouton1 && !bouton2)																	//Si on est dans aucun des 2 boutons
+							recommencer(false, false);
+					}
+					
+					if(menu.pause) {																					//Changement de la couleur des boutons dans le menu de pause
+						bouton1 = sourisX >= 301 && sourisX <= 502 && sourisY >= 231 && sourisY <= 271;
+						bouton2 = sourisX >= 301 && sourisX <= 502 && sourisY >= 281 && sourisY <= 321;
+						bouton3 = sourisX >= 301 && sourisX <= 502 && sourisY >= 331 && sourisY <= 371;
+						if(bouton1)
+							pause(true, false, false, false, false, false);
+						
+						if(bouton2)
+							pause(false, true, false, false, false, false);
+							
+						if(bouton3)
+							pause(false, false, true, false, false, false);
+						
+						if(!bouton1 && !bouton2 && !bouton3)														//Si on est dans aucun des 3 boutons
+							pause(false, false, false, false, false, false);
+					}
+					
+					if(menu.ouiNon) {																				//Changement de la couleur des boutons dans le menu de confirmation
+						bouton1 = sourisX >= 221 && sourisX <= 582 && sourisY >= 231 && sourisY <= 271;
+						bouton2 = sourisX >= 221 && sourisX <= 582 && sourisY >= 281 && sourisY <= 321;
+						if(bouton1)
+							pause(true, false, false, false, false, false);
+						
+						if(bouton2)
+							pause(false, true, false, false, false, false);
+						
+						if(!bouton1 && !bouton2)																	//Si on est dans aucun des 2 boutons
+							pause(false, false, false, false, false, false);
+					}
+					
+					if(menu.options) {																				//Si on est dans le menu des options
+						bouton1 = sourisX >= 326 && sourisX <= 351 && sourisY >= 267 && sourisY <= 304;
+						bouton2 = sourisX >= 466 && sourisX <= 481 && sourisY >= 267 && sourisY <= 304;
+						bouton3 = sourisX >= 301 && sourisX <= 502 && sourisY >= 326 && sourisY <= 364;
+						if(bouton1)
+							pause(false, false, false, true, false, false);
+						
+						if(bouton2)
+							pause(false, false, false, false, true, false);
+						
+						if(bouton3)
+							pause(false, false, false, false, false, true);
+							
+						if(!bouton1 && !bouton2 && !bouton3)														//Si on est dans aucun des 3 boutons
+							pause(false, false, false, false, false, false);
+					}
+					
+					if(menu.fin) {																					//Si on est dans le menu de fin
+						if(sourisX >= 891 && sourisX <= 992 && sourisY >= 561 && sourisY <= 591) {
+							if(menu.gagne)																			//Si c'est celui après une victoire
+								fin("green", "Fin !", 379, 300, true);
+							else																					//Si c'est celui après une défaite
+								fin("red", "Fin !", 379, 300, true);
+						} else {																					//Si on est pas dans le bouton
+							if(menu.gagne)																			//Si c'est celui après une victoire
+								fin("green", "Fin !", 379, 300, false);
+							else 																					//Si c'est celui après une défaite
+								fin("red", "Fin !", 379, 300, false);
+						}
+					}
+				}
+
+				//Dessine la balle
+				function dessineBalle(balleBonus) {
+					if(!balleBonus)
+						balleImg = balleNormale;
+					else
+						balleImg = balleFer;
+					ctx.beginPath();
+					ctx.fillStyle = "rgba(60, 60, 60, 0.75)";													//Couleur de l'ombre
+					ctx.arc(balle.x - rayon + 10, balle.y - rayon + 10, rayon, 0, 2 * Math.PI);						//Ombre de la balle
+					ctx.fill();
+					ctx.drawImage(balleImg, balle.x - rayon, balle.y - rayon, balle.diametre, balle.diametre);		//Affichage de la balle
+				}
+
+				//Dessine la raquette
+				function dessineRaquette(taille) {
+					if(raquette.taille == 0) {
+						raquette.imageRaquette = raquettePetite;
+						raquette.largeur = 96;
+					} else if(raquette.taille == 1) {
+						raquette.imageRaquette = raquetteNormale;
+						raquette.largeur = 128;
+					} else if(raquette.taille == 2) {
+						raquette.imageRaquette = raquetteGrande;
+						raquette.largeur = 160;
+					}
+					
+					if(raquette.deplacementDroite && raquette.x < 800 - raquette.largeur / 2)			//Deplacement vers la droite
+						raquette.x += raquette.vitesse;
+					else if(raquette.deplacementGauche && raquette.x > raquette.largeur / 2)			//Deplacement vers la gauche
+						raquette.x += -raquette.vitesse;
+					
+					if(!optionClavier && menu.jeu && !menu.pause && (!menu.options || !menu.ouiNon)) {						//Si c'est le deplacement avec la souris
+						if(sourisDeplacement < 800 - raquette.largeur / 2 && sourisDeplacement > raquette.largeur / 2)	//Deplacement de la raquette avec la souris
+							raquette.x = sourisDeplacement;
+						if(sourisDeplacement > 800 - raquette.largeur / 2)												//Quand la souris est au bord, mettre la raquette au bord
+							raquette.x = 800 - raquette.largeur / 2;														//
+						else if(sourisDeplacement < raquette.largeur / 2)												//
+							raquette.x = raquette.largeur / 2;															//
+					}
+					
+					if(!tir)																//Si on a pas encore tiré, la balle se deplace en meme temps que la raquette
+						balle.x = raquette.x;
+					
+					ctx.beginPath();
+					ctx.fillStyle = "rgba(60, 60, 60, 0.75)";																						//Couleur de l'ombre
+					ctx.arc(16 + raquette.x - raquette.largeur / 2, raquette.y + 5, 10, Math.PI / 2, 3 * Math.PI / 2);		//Ombre de la raquette
+					ctx.arc(raquette.largeur - 4 + raquette.x - raquette.largeur / 2, raquette.y + 5, 10, 3 * Math.PI / 2, Math.PI / 2);		//
+					ctx.fill();
+					ctx.drawImage(raquette.imageRaquette, raquette.x - raquette.largeur / 2, raquette.y - raquette.hauteur / 2, raquette.largeur, raquette.hauteur);	//Affichage de la raquette
+				}
+				
+				//Gere les rebonds et collisions avec les bords et la raquette
+				function rebonds() {
+					if(balle.x - rayon <= 0 || balle.x + rayon >= 800)						//Collision à droite / gauche
+						balle.xDeplacement *= -1;
+					
+					if(balle.y <= rayon)													//Collision en haut
+						balle.yDeplacement *= -1;
+					
+					if(balle.y >= 600 - rayon) {											//Collision en bas
+						tir = false;
+						reinitialisationParametres();
+						vie--;
+					}
+					
+					if((balle.x >= raquette.x - raquette.largeur / 2 && balle.x <= raquette.x + raquette.largeur / 2) && balle.y + rayon >= raquette.y - raquette.hauteur / 2) {	//Collision avec le dessus de la raquette
+						var alpha = Math.atan(balle.xDeplacement / balle.yDeplacement);
+						var teta = Math.PI / 4 * (balle.x - raquette.x) / (raquette.largeur / 2);
+						
+						if(alpha + teta > Math.PI / 2)
+							teta = 0;
+						else if(alpha + teta < -Math.PI / 2)
+							teta = 0;
+						
+						var a = balle.xDeplacement * Math.cos(teta) + balle.yDeplacement * Math.sin(teta);
+						var b = balle.xDeplacement * Math.sin(teta) - balle.yDeplacement * Math.cos(teta);
+						
+						if(raquette.deplacementDroite)
+							teta = Math.PI / 8;
+						else if(raquette.deplacementGauche)
+							teta = -Math.PI / 8;
+						else
+							teta = 0;
+						
+						if(alpha + teta > Math.PI / 2)
+							teta = 0;
+						else if(alpha + teta < -Math.PI / 2)
+							teta = 0;
+						
+						balle.xDeplacement = a * Math.cos(teta) - b * Math.sin(teta);
+						balle.yDeplacement = a * Math.sin(teta) + b * Math.cos(teta);
+						balle.y = 537;
+					}
+
+				
+					/*if(balle.y + rayon >= raquette.y - raquette.hauteur / 2) {
+							console.log(balle.x + rayon, raquette.x +raquette.largeur/2 -12,raquette.x + raquette.largeur / 2 + 2);
+							if(balle.x + rayon >= raquette.x + raquette.largeur / 2 -12 && balle.x + rayon <= raquette.x + raquette.largeur / 2 + 12) {
+							
+							if(balle.xDeplacement >= 0 && raquette.deplacementGauche) {
+								balle.xDeplacement *= -1 * 1.2;
+								balle.yDeplacement *= -1 * 1.2;
+							}
+							
+							if(balle.xDeplacement >= 0 && raquette.deplacementDroite) {
+								balle.xDeplacement *= -1 * 0.8;
+								balle.yDeplacement *= -1 * 0.8;
+							}
+							
+							if(balle.xDeplacement <= 0 && raquette.deplacementGauche) {
+								balle.xDeplacement *= 1 * 1.2;
+								balle.yDeplacement *= -1 * 1.2;
+							}
+							
+							if(balle.xDeplacement <= 0 && raquette.deplacementDroite) {
+								balle.xDeplacement *= 1 * 0.8;
+								balle.yDeplacement *= -1 * 0.8;
+							}
+						} else if(balle.x - rayon  >= raquette.x - raquette.largeur / 2  && balle.x - rayon  <= raquette - raquette.largeur / 2+11) {
+							
+							if(balle.xDeplacement > 0 && raquette.deplacementGauche) {
+								balle.xDeplacement *= 1 * 0.8;
+								balle.yDeplacement *= -1 * 0.8;
+							}
+							
+							if(balle.xDeplacement > 0 && raquette.deplacementDroite) {
+								balle.xDeplacement *= 1 * 1.2;
+								balle.yDeplacement *= -1 * 1.2;
+							}
+							
+							if(balle.xDeplacement < 0 && raquette.deplacementGauche) {
+								balle.xDeplacement *= -1 * 0.8;
+								balle.yDeplacement *= -1 * 0.8;
+							}
+							
+							if(balle.xDeplacement < 0 && raquette.deplacementDroite) {
+								balle.xDeplacement *= -1 * 1.2;
+								balle.yDeplacement *= -1 * 1.2;
+							}
+						}
+					}*/
+					
+					/*if(balle.yDeplacement <= 0.000001)
+						delai++;
+					else
+						delai = 0;
+					
+					if(delai >= 3000 && balle.yDeplacement <= 0.000001) {
+						balle.yDeplacement = -0.05;
+						balle.xDeplacement = Math.sqrt(1 - balle.yDeplacement * balle.yDeplacement);
+					}*/
+					
+					//Evolution de la position de la balle
+					balle.x += balle.xDeplacement * balle.vitesse;
+					balle.y += balle.yDeplacement * balle.vitesse;
+				}
+
+				//Affichage du cadre de score
+				function barrefont() {
+					dessinerCadre(801, 0, 199, 600, "none", 4, "black");
+					ctx.fillStyle = degrade;            						//Remplissage
+					ctx.fillRect(800, 0, 200, 600);
+					ctx.strokeStyle = "black";
+					ctx.lineWidth = 4;
+					ctx.beginPath();											//Separation
+					ctx.moveTo(800,300);										//
+					ctx.lineTo(1000,300);										//
+					ctx.closePath();											//
+					ctx.stroke();
+					styleEcriture("10", "font", "rgb(180, 180, 180)");
+					ctx.fillText("Score :", 810, 20);
+					ctx.fillText("Meilleur score :", 810, 70);
+					ctx.fillText("Multiplicateur :", 810, 120);
+					if(vie > 1)
+						ctx.fillText("Vies :", 810, 170);
+					else
+						ctx.fillText("Vie :", 810, 170);
+					ctx.fillText("Briques restantes :", 810, 220);
+					if(nombreDeMissile > 0)											//S'il y a encore des missiles
+						ctx.fillText("Missiles restants : ", 810, 270);
+					if(nombreDeBonus == 0)
+						ctx.fillText("Aucun bonus", 840, 335);
+					else
+						ctx.fillText("Bonus :", 810, 320);
+					styleEcriture("13", "font", "rgb(10, 10, 10)");
+					ctx.fillText(score, 815, 38);
+					ctx.fillText(meilleurScore, 815, 88);
+					ctx.fillText("x " + multiplicateur, 815, 138);
+					affichageVies();
+					ctx.fillText(nombreDeBriques - briquesParametres.detruites, 815, 238);
+					if(nombreDeMissile > 0)											//S'il y a encore des missiles
+						ctx.fillText(nombreDeMissile, 815, 285);					//Missiles disponibles
+				}
+				
+				//Affiche les vies dans la barre d'font
+				function affichageVies() {
+					for(i = 0; i < vie; i++) {																						//En fonction du nombre de vies
+						ctx.beginPath();
+						ctx.drawImage(balleImg, 818 + i * (1.5 * balle.diametre), 175, balle.diametre + 2, balle.diametre + 2);		//Affichage des balles
+					}
+				}
+				
+				function nettoyageEcran() {
+					ctx.clearRect(0, 0, 1000, 600);						//Efface la fenetre et reaffiche tout
+					ctx.beginPath();
+					ctx.drawImage(fondJeu, 0, 0, 800, 600);
+					ctx.closePath();
+					affichageDesBriques();
+					dessineBalle();
+					dessineRaquette();
+					barrefont();
+					if(bouclierActif)
+						bouclier()
+					affichageBonus();
+					ctx.lineWidth = 4;
+				}
+				
+				function test() {
+					ctx.fillStyle = "red";
+					styleEcriture("11", "Verdana");																						//Ecriture dans le bouton
+
+					/*ctx.fillText("balle.y :", 815, 370);
+					ctx.fillText(balle.y, 815, 385);
+					
+					ctx.fillText("raquette.y - raquette.hauteur / 2 :", 815, 400);
+					ctx.fillText(raquette.y - raquette.hauteur / 2, 815, 415);
+					
+					ctx.fillText("balle.y + rayon", 815, 430);
+					ctx.fillText(balle.y + rayon, 815, 445);
+					
+					ctx.fillText("balle.xDeplacement :", 815, 460);
+					ctx.fillText(balle.xDeplacement, 815, 475);*/
+					
+					ctx.fillText("a² + b² :", 815, 490);
+					ctx.fillText(Math.sqrt((balle.xDeplacement * balle.vitesse) * (balle.xDeplacement * balle.vitesse) + (balle.yDeplacement * balle.vitesse) * (balle.yDeplacement * balle.vitesse)), 815, 500);
+				}
+				
+				//Mise à jour du jeu
+				function jeu() {
+					if(!menu.debut && !menu.perdu && !menu.gagne && !menu.pause && !menu.ouiNon && !menu.options && !menu.fin) {	//Si aucun menu n'est affiché
+						ctx.clearRect(0, 0, 1000, 600);					//Efface la fenetre
+						ctx.beginPath();
+						ctx.drawImage(fondJeu, 0, 0, 800, 600);
+						ctx.closePath();
+						rebonds();
+						affichageDesBriques();
+						dessineBalle(balleFerActive);
+						if(missileTire > 0)
+							affichageMissiles();
+						dessineRaquette(raquette.taille);
+						if (balle.y - rayon <= limiteBriques || missileTire > 0)			//Si la balle est au niveau des briques
+							collisionDesBriques();
+						//rebonds ici
+						barrefont();
+						affichageBonus();
+						//test();
+						
+						if(bouclierActif)
+							bouclier();
+											
+						if(score > meilleurScore)						//Mise à jour du meilleur score
+							meilleurScore = score;
+						
+						if(vie == -1) {									//Si plus de vie alors menu de défaite
+							vie = 3;
+							menu.perdu = true;
+							menu.jeu = false;
+							recommencer(false, false);
+						}
+						
+						if(nombreDeBriques - briquesParametres.detruites == 0) {	//Si plus de briques alors menu de victoire
+							menu.gagne = true;
+							menu.jeu = false;
+							recommencer(false, false);
+						}
+					}
+				}
+				var animation = setInterval(jeu, 1);								//Intervale de mise a jour du jeu
+			</script>
+		</center>
+	</body>
+</html>
